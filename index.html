@@ -1,47 +1,28 @@
 <html>
     <head>
+        <!-- http://underscorejs.org -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
         <script src="https://unpkg.com/vue/dist/vue.js"></script>
-        <script src="https://cdn.jsdelivr.net/vue.resource/1.2.0/vue-resource.min.js"></script>
-        <script
-            src="https://code.jquery.com/jquery-2.2.4.min.js"
-            integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44="
-            crossorigin="anonymous"></script>
-        <!-- 
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
-        -->
-        <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
-        <script src="https://code.jquery.com/jquery-3.1.1.slim.min.js" integrity="sha384-A7FZj7v+d/sdmMqp/nOQwliLvUsJfDHW+k9Omg/a/EheAdgtzNs3hpfag6Ed950n" crossorigin="anonymous"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+        <!-- For ajax requests (use instead of jquery $.get) :
+        <script src="https://cdn.jsdelivr.net/vue.resource/1.2.0/vue-resource.min.js"></script> -->
+        <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" crossorigin="anonymous">
     </head>
     <body>
         <style>
-         table.table thead tr th {
-             text-align: center;
-         }
-         tr.loading {
-             background-color: #EFEFEF;
-         }
+         table.table thead tr th { text-align: center; }
+         tr.loading { background-color: #EFEFEF; }
+         .red { color: red; }
         </style>
-        <div id="app" class="container">
-            <form v-on:submit="addBarcode" v-on:submit.prevent="onSubmit">
-                <div class="d-flex justify-content-center" style="margin-top: 20px; margin-bottom: 20px;" >
-                    <div class="col-md-3" >
-                        <input ref="barcodeInput" v-model="barcode" class="form-control" placeholder="Scan barcode..."/>
-                    </div>
-                    <button v-on:focus="addBarcode" class="btn btn-secondary">
-                        Add
-                    </button>
-                </div>
-            </form>
 
+        <div id="app" class="container" style="padding-top: 10px;">
+            <form v-on:submit="addBarcode" v-on:submit.prevent="onSubmit" class="form-inline">
+                <input ref="barcodeRef" v-model="barcodeInput" class="form-control" placeholder="Scan barcode..."/>
+                <button v-on:focus="addBarcode" class="btn btn-secondary">Add</button>
+            </form>
             <table class="table table-sm table-hover table-bordered" style="font-size: 80%;">
-                    <caption>
-                        {{ barcodes.length }} items
-                    </caption>
-                <thead >
+                <caption>{{ barcodes.length }} items</caption>
+                <thead>
                     <tr>
                         <th colspan="7">&nbsp;</th>
                         <th colspan="6">Next Action</th>
@@ -59,11 +40,20 @@
                         <th>Duration</th>
                         <th>Status</th>
                         <th>Action Date</th>
-                        <th>Move To</th>
+                        <th>
+                            <select v-model="globalNextActionId">
+                                <option v-for="option in allNextActions" v-bind:value="option.id">
+                                    {{ option.state }}
+                                </option>
+                            </select>
+                            <button v-on:click="setAllNextStates">Update All</button>
+                            <br/>
+                            Move To
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="item in barcodes" v-bind:class="item.loading ? 'loading' : ''">
+                    <tr v-for="item in barcodes" v-bind:class="item.loading && 'loading'">
                         <template v-if="item.loading">
                             <td>
                                 <i class="fa fa-spinner"  aria-hidden="true" ></i>
@@ -72,9 +62,7 @@
                             <td colspan="11"></td>
                         </template>
                         <template v-else>
-                            <td style="color: red;">
-                                <i class="fa fa-trash" v-on:click="removeItem(item)"/>
-                            </td>
+                            <td><i v-on:click="removeItem(item)" class="fa fa-trash red" /></td>
                             <td>{{ item.barcode }}</td>
                             <td>{{ item.id }}</td>
                             <td>{{ item.production_date }}</td>
@@ -82,9 +70,7 @@
                             <td>{{ item.product_name }}</td>
                             <td>{{ item.current_location }}</td>
                             <template v-if="item.error">
-                                <td colspan="6" class="table-danger">
-                                    {{ item.error }}
-                                </td>
+                                <td colspan="6" class="table-danger">{{ item.error }}</td>
                             </template>
                             <template v-else>
                                 <td>{{ item.action }}</td>
@@ -93,8 +79,8 @@
                                 <td>{{ item.status }}</td>
                                 <td>{{ item.action_date }}</td>
                                 <td>
-                                    <select>
-                                        <option v-for="option in item.move_to" b-bind:value="option.id">
+                                    <select v-model="item.selected_next_action_id">
+                                        <option v-for="option in item.next_actions" v-bind:value="option.id">
                                             {{ option.state }}
                                         </option>
                                     </select>
@@ -104,83 +90,147 @@
                     </tr>
                 </tbody>
             </table>
-            <div class="d-flex justify-content-center">
-                <button v-if="false && barcodes.length>0" v-on:click="clearAll">
+            <div class="d-flex justify-content-around align-items-start">
+                <button v-if="barcodes.length>0" v-on:click="reloadData" class="btn btn-outline-danger">
+                    Reload Data
+                </button>
+                <button v-if="barcodes.length>0" v-on:click="clearAll" class="btn btn-outline-danger">
                     Clear All
                 </button>
-                <template v-if="_.some(barcodes, (b) => b.error)">
-                    <div class="alert alert-danger">
-                        There are errors.
-                    </div>
-                </template>
-                <template v-else>
-                    <button v-if="canSubmit()" class="btn btn-outline-primary">
-                        Move all {{ barcodes.length }} Samples
-                    </button>
-                </template>
+                <div v-if="hasErrors()" class="alert alert-danger">
+                    There are errors.
+                </div>
+                <button v-if="canSubmit()" class="btn btn-outline-primary">
+                    Move all {{ barcodes.length }} Samples
+                </button>
             </div>
         </div>
 
         <script>
+
+         // Load/Save barcodes using HTML5 localstorage so data
+         // is saved between refreshes
+
+         var saveKey = "barcode_ids";
+
+         function loadBarcodeIds() {
+             return JSON.parse(localStorage.getItem(saveKey) || "[]");
+         }
+
+         function saveBarcodeIds(barcodes) {
+             localStorage.setItem(saveKey, JSON.stringify(_.pluck(barcodes, 'barcode')));
+         }
+
          var vm = new Vue({
              el: "#app",
              data: function() {
                  return {
-                    barcode: '',
-                    barcodes: []
+                     barcodes: [],
+                     barcodeInput: '',
+                     globalNextActionId: null,
+                     allNextActions: []
                  }
              },
+             created: function() {
+                 this.barcodes = _.map(loadBarcodeIds(),
+                                       function(id) {
+                                           return { barcode: id, loading: true };
+                                       });
+                 _.each(this.barcodes, barcode => this.loadSample(barcode));
+             },
              methods: {
-                 addBarcode: function(id, prop) {
-                     if(this.barcode) {
-                         var item =  { barcode: this.barcode, loading: true };
-                         this.barcodes.unshift(item);
-                         this.loadSample(item);
-
-                         // Clear barcode and focus on barcode field
-                         this.barcode = '';
-                         this.$refs.barcodeInput.focus();
-                     }
+                 addBarcode: function() {
+                     if (!this.barcodeInput) return;
+                     var item =  {
+                         barcode: this.barcodeInput,
+                         loading: true
+                     };
+                     this.barcodes.unshift(item);
+                     this.loadSample(item);
+                     this.barcodeInput = '';
+                     this.$refs.barcodeRef.focus();
+                     saveBarcodeIds(this.barcodes);
                  },
-                 clearAll: function() {
+                 clearAll:  function() {
                      this.barcodes = [];
+                     saveBarcodeIds(this.barcodes);
+                 },
+                 reloadData:  function() {
+                    _.each(this.barcodes, barcode => this.loadSample(barcode));
+                 },
+                 hasErrors: function() {
+                     return _.some(this.barcodes, b => b.error);
                  },
                  canSubmit: function() {
-                     if(this.barcodes.length == 0) return false;
-                     var canSubmit = true;
-                     for(var i = 0; i < this.barcodes.length; i++) {
-                         if(this.barcodes[i].loading) canSubmit = false;
-                     }
-                     return canSubmit;
+                     return this.barcodes.length > 0 &&
+                            !this.hasErrors() &&
+                            _.every(this.barcodes, b => !b.loading);
                  },
                  removeItem: function(item) {
                      var index = this.barcodes.indexOf(item);
                      if (index > -1) this.barcodes.splice(index, 1);
+                     saveBarcodeIds(this.barcodes);
+                 },
+                 setAllNextStates: function() {
+                     if(!this.globalNextActionId) return;
+                     _.each(this.barcodes,
+                            barcode => this.updateSingleBarcode(barcode,
+                                                                { selected_next_action_id: this.globalNextActionId }));
+                 },
+                 // Called when a single item is updated to force a re-render of the view
+                 updateSingleBarcode(item, properties) {
+                     if (properties)
+                         Object.assign(item, properties);
+                     this.barcodes.splice(this.barcodes.indexOf(item), 1, item);
                  },
                  loadSample: function(item) {
+                     this.updateSingleBarcode(item, { loading: true });
+
+                     // uses vue-resource to call server url
+                     /* this.$http.get('/api/findSampleUrl', {
+                      *     params: {
+                      *         barcode: item.barcode
+                      *     }
+                      * }).then(response => {
+                      *     response.json().then(json => {
+                      *        Object.assign(item, json, { loading: false })
+                      *        this.updateSingleBarcode(item);
+                      *     });
+                      * }, errorResponse => {
+                      *     Object.assign(item, { loading: false, error: "Problem fetching data" })
+                      *     this.updateSingleBarcode(item);
+                      * });
+                      */
+
+                     // Create random data for sample
                      setTimeout(() => {
-                        newItem = Object.assign({}, item, {
-                            loading: false,
-                            id: _.random(1000000, 200000),
-                            production_date: _.random(1,28)+" "+_.sample(["Jan", "Feb", "Mar"])+" "+_.sample([16, 17]),
-                            registered_date: _.random(1,28)+" "+_.sample(["Jan", "Feb", "Mar"])+" "+_.sample([16, 17]),
-                            product_name: _.sample(["Jam Sandwich", "Jammy Dodgers", "Feast", "Fab Bar", "99 Flake"]),
-                            current_location: _.sample(["2.5C", "8C", "22C"]),
-                            new_location: _.sample(["2.5C", "8C", "22C"]),
-                            action: _.sample(["Store", "Abuse", "Open"]),
-                            duration: _.random(1,4)+" hours",
-                            status: "Unfinished",
-                            action_date: "21 Feb 16",
-                            move_to: [{ state: "In-progress", id: 2},
-                                      { state: "Complete", id: 1}],
-                            error: _.random(1,10) == 1 ? "No next action" : ""
-                        });
-                         Vue.set(this.barcodes, this.barcodes.indexOf(item), newItem);
-                     }, _.random(2000, 5000));
+                         this.updateSingleBarcode(item, {
+                             loading: false,
+                             id: _.random(1000000, 200000),
+                             production_date: _.random(1,28)+" "+_.sample(["Jan", "Feb", "Mar"])+" "+_.sample([16, 17]),
+                             registered_date: _.random(1,28)+" "+_.sample(["Jan", "Feb", "Mar"])+" "+_.sample([16, 17]),
+                             product_name: _.sample(["Jam Sandwich", "Jammy Dodgers", "Feast", "Fab Bar", "99 Flake"]),
+                             current_location: _.sample(["2.5C", "8C", "22C"]),
+                             new_location: _.sample(["2.5C", "8C", "22C"]),
+                             action: _.sample(["Store", "Abuse", "Open"]),
+                             duration: _.random(1,4)+" hours",
+                             status: "Unfinished",
+                             action_date: "21 Feb 16",
+                             next_actions: [{ id: 2, state: "In-progress" },
+                                            { id: 1, state: "Complete" }],
+                             selected_next_action_id: 2,
+                             error: _.random(1,10) == 1 ? "No next action" : ""
+                         });
+                         this.allNextActions = _.uniq(
+                             _.flatten(
+                                 _.compact(
+                                     _.pluck(this.barcodes, 'next_actions')
+                                 )
+                             ), false, _.iteratee('id') ); // :-(
+                     }, _.random(500, 3000));
                  }
              }
          });
         </script>
-
     </body>
 </html>
